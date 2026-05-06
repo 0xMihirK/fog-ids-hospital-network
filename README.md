@@ -141,4 +141,4 @@ At the conclusion of the simulation, the system aggregates the historical node s
 * **Survivability**: Evaluates energy depletion to calculate the final network survival rate.
 
 ---
-*Developed by Mihir Katoch as part of the Fog-Project research initiative.*
+*Developed by Mihir Katoch as part of the Fog Computing Course.*
