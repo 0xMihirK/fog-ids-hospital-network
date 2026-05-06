@@ -1,4 +1,4 @@
-# Fog IDS Hospital Network Simulation
+# Hospital Fog Intrusion Detection System (IDS)
 
 <div align="center">
   <img src="docs/dashboard.png" alt="Hospital Fog IDS Dashboard - Health Monitor">
@@ -6,13 +6,15 @@
   <em>Real-time network monitoring and analysis dashboard</em>
 </div>
 
-This project implements a highly realistic, large-scale simulation of an Internet of Medical Things (IoMT) hospital network, paired with a custom machine learning-based Intrusion Detection System (IDS) deployed at the "Fog" computing layer.
+## 1. Abstract & Overview
 
-Instead of focusing purely on the backend mechanics, this simulation aims to provide an accurate representation of a critical-infrastructure environment, showcasing how modern hospitals can maintain high availability and life-saving operations even while under active cyberattack.
+The rapid proliferation of Internet of Medical Things (IoMT) devices in modern healthcare environments introduces significant cybersecurity vulnerabilities. This project presents a comprehensive, real-time Intrusion Detection System (IDS) designed specifically for a simulated 1,481-node hospital fog network. 
 
-## 🏥 Simulating a Real-World Hospital Scale
+By leveraging a dual-stack architecture comprising a MATLAB-based high-performance simulation engine and a Python/Flask web dashboard, the system effectively models complex medical device interactions across segmented VLANs. The core of the IDS relies on a lightweight, 7-module statistical machine learning ensemble deployed at the fog layer. This ensemble analyzes packet rates, communication latency, payload entropy, and physiological data integrity to detect various cyber threats, including DDoS, Man-in-the-Middle (MITM), Replay Attacks, Nmap (Port Scanning), Advanced Persistent Threats (APT), and Data Injection.
 
-The network is modeled on a 5-acre (200,000 square feet or 500m x 400m) hospital floor plan, bringing true spatial realism to the network behavior.
+## 2. Simulating a Real-World Hospital Scale
+
+Modern hospitals rely heavily on interconnected medical devices to provide continuous, life-saving care. The simulation accurately models a large-scale hospital environment spread across a **5-acre facility (500m × 400m)**, bringing true spatial realism to network behavior.
 
 <div align="center">
   <img src="docs/sim.png" alt="Network Topology Simulation">
@@ -20,27 +22,37 @@ The network is modeled on a 5-acre (200,000 square feet or 500m x 400m) hospital
   <em>1,481-node network topology visualization mapped across 6 clinical zones</em>
 </div>
 
-* **Massive Scale**: The environment consists of 1,481 distinct network nodes (1,360 IoMT sensors, 100 Fog clusters, 15 Gateways, and Cloud infrastructure).
-* **Segmented Clinical Zones**: The simulation accurately models functional isolation. Devices are split across 6 distinct clinical zones, each behaving differently:
-  * **Intensive Care Unit (ICU)**: 240 nodes (Continuous high-frequency monitoring)
+* **Massive Scale**: The environment consists of exactly **1,481 network nodes**:
+  * 1,360 Edge/Sensor Nodes (IoMT devices)
+  * 100 Fog Computing Nodes (Cluster heads)
+  * 15 Gateways
+  * 5 Cloud Servers and 1 Datacenter
+* **Segmented Clinical Zones**: Devices are physically and logically split across 6 distinct clinical zones, each simulating realistic traffic patterns:
+  * **Intensive Care Unit (ICU)**: 240 nodes (Ventilators and Patient Monitors producing continuous high-frequency traffic)
   * **General Wards**: 480 nodes (Periodic vital sign checking)
-  * **Radiology**: 120 nodes (High bandwidth, bursty traffic)
+  * **Radiology**: 120 nodes (PACS systems producing high bandwidth, bursty traffic)
   * **Pharmacy**: 120 nodes
   * **Facilities (HVAC/Power)**: 240 nodes
   * **Guest/Public Wi-Fi**: 160 nodes (Low trust zone)
-* **Distance-Based Latency**: Because node placement is physically modeled on the 5-acre grid, signal latency and packet drop rates are calculated using actual distance equations from the sensors to their assigned Fog processing nodes.
+* **Physiological Payloads**: Patient-connected devices generate realistic, randomized physiological vital signs (Heart Rate, SpO2, Blood Pressure, Temperature) to test data integrity attacks.
 
-## 🛡️ Critical Infrastructure & High Uptime Design
+## 3. Critical Infrastructure & Network Architecture
 
-Hospitals cannot simply "shut down" when compromised. The network architecture in this simulation is built around resilience.
+Hospitals cannot simply "shut down" when compromised. The network architecture in this simulation is built around high uptime and resilience.
 
-* **Hierarchical Routing (Sensor → Fog → Gateway → Cloud)**: By pushing processing to the Fog layer (local cluster heads), the network prevents the central cloud from becoming a single point of failure or an easy DDoS target.
-* **VLAN Strictness**: The network heavily utilizes VLAN segmentation (VLANs 101-106 for clinical zones). If a device in the Guest network is compromised by ransomware, the VLAN ACLs physically prevent lateral movement into the ICU's ventilator network.
-* **Decoy Infrastructure (Honeypots)**: Fake medical devices (e.g., simulated unpatched infusion pumps) are placed in the DMZ. Since no legitimate traffic should ever touch these honeypots, any interaction instantly flags the source as a malicious actor performing reconnaissance (like Nmap scanning).
+### Hierarchical Routing & Fog Computing
+By pushing processing and machine learning analytics closer to the edge devices (into the "Fog"), the system achieves real-time threat detection without overwhelming the central cloud. The routing follows a 4-tier model: Sensor $\rightarrow$ Fog Node (using LEACH clustering) $\rightarrow$ Gateway $\rightarrow$ Cloud.
 
-## 🚨 Attack Detection & Isolation
+### Strict VLAN Segmentation
+The network relies on strict VLAN enforcement and Access Control Lists (ACLs) to isolate critical systems:
+* **VLANs 101-106**: Dedicated clinical and operational zones.
+* **VLAN 10 (DMZ)**: For public-facing IT services.
+* **VLAN 200, 300, 400**: For Fog, Gateway, and Cloud infrastructure.
+If a device in the Guest network is compromised by ransomware, the VLAN ACLs physically prevent lateral movement into the ICU's ventilator network.
 
-The simulation continuously monitors the health of the environment. Attacks are caught by a **7-Module Ensemble IDS** running at the Fog layer.
+## 4. The 7-Module Machine Learning IDS
+
+Given the computational constraints of fog nodes, heavy deep neural networks are impractical. Instead, the project utilizes an ensemble of lightweight, unsupervised statistical machine learning models working continuously in real-time.
 
 <div align="center">
   <img src="docs/dashboard1.png" alt="Attack Distribution and Alerts">
@@ -48,19 +60,51 @@ The simulation continuously monitors the health of the environment. Attacks are 
   <em>Live event feed and attack distribution monitoring</em>
 </div>
 
-1. **Statistical Baselines**: The IDS learns what "normal" looks like for every single device. It tracks Exponentially Weighted Moving Averages (EWMA) of packet rates and latencies.
-2. **Multi-Vector Detection**: The system doesn't rely on one method. It uses:
-   * Volumetric rate checking (for DDoS)
-   * Latency anomaly detection (for Man-in-the-Middle delays)
-   * Payload Entropy (to catch data encryption/injection)
-   * Biological Sanity Checks (If a ventilator suddenly reports a heart rate of 500 BPM, the IDS flags it as data injection, not a medical emergency).
-3. **Dynamic Isolation (VLAN 999)**: When an attack is confirmed, the node is not simply turned off—which could be dangerous in a hospital. Instead, the simulation dynamically rewrites the network rules, dropping the compromised node into a Quarantine Zone (VLAN 999). This cuts off its ability to transmit to the outside world or infect other devices, while still keeping the device powered on.
+1. **Unsupervised Baseline Learning (Warm-up)**: The algorithms observe nominal traffic to dynamically calculate normal operational baselines ($\mu$) and standard deviations ($\sigma$) for *every single node* in the network.
+2. **Exponentially Weighted Moving Average (EWMA)**: Provides an adaptive baseline for packet rates and latency, allowing the IDS to adapt to legitimate, gradual changes while catching sudden spikes.
+3. **Z-Score Anomaly Detection**: Normalizes deviations from the dynamic mean, triggering an anomaly if a threshold is breached.
+4. **Cumulative Sum (CUSUM) Change-Point Detection**: Excels at detecting "low and slow" attacks (like APTs) that maintain packet rates just below instant Z-score thresholds.
+5. **Shannon Entropy Analysis**: Detects encrypted or randomized data injections by evaluating the statistical distribution of the payload vector, bypassing the need for deep packet inspection.
+
+No single model has absolute authority. Each module casts a binary vote, and the system aggregates these votes to calculate a final normalized Anomaly Score.
+
+## 5. Threat Models & Detection Methodology
+
+The system evaluates network metrics against deterministic fingerprints and statistical voting to detect 6 primary cyber threats:
+
+* **DDoS (Volumetric Floods)**: Detected via an unambiguous traffic footprint where packet rates and latency spike massively. Triggers an immediate override alarm.
+* **Nmap (Port Scanning)**: Causes unnatural bursts in transmission without reaching DDoS levels. Caught by combining elevated traffic thresholds with multiple statistical module votes.
+* **Replay Attacks**: Attackers maliciously resend historical data streams, causing localized network congestion, caught similarly to scanning behaviors.
+* **MITM (Man-in-the-Middle)**: An attacker intercepts communication, introducing severe routing delays. Detected primarily via high-latency footprints and payload entropy deviations.
+* **Data Injection / Falsification**: Attackers inject life-threatening physiological data. If the payload indicates impossible biological states (e.g., Heart Rate > 300 bpm or SpO2 < 40%) coupled with an anomaly vote, it is instantly flagged.
+* **APT (Advanced Persistent Threats)**: "Low and slow" data exfiltration designed to evade immediate fingerprinting. Caught using CUSUM Change-Point Tracking over long temporal sliding windows.
+
+## 6. Threat Mitigation: Dynamic Quarantine & Decoys
+
+Beyond detection, the system implements active defense mechanisms to neutralize threats without disrupting hospital operations.
+
+### Dynamic Node Quarantine (VLAN 999)
+When the IDS confirms a compromised node, it employs a quarantine protocol to instantly isolate the threat. The node is not powered down; instead, its network traffic is dynamically reassigned to an isolated Access Control List mapped to **VLAN 999**. This completely blocks its egress traffic, neutralizing its ability to harm the broader hospital network. 
+* **Instant Quarantine**: For severe fingerprint matches (DDoS, lethal Data Injection).
+* **Streak-Based Quarantine**: For sustained, persistent alarms over multiple simulation ticks.
+
+### Honeypot Decoys
+To proactively identify scanning activities, a subset of nodes are designated as 'Honeypots' and strategically placed within the DMZ/LAN. These devices are devoid of medical functionality. Any interaction with them (e.g., an Nmap scan) instantly flags and logs the source as a malicious actor.
+
+## 7. Performance Evaluation & Metrics
+
+At the conclusion of the simulation, the system aggregates the historical node states to compute standard classification metrics, providing a comprehensive evaluation of the IDS.
 
 <div align="center">
   <img src="docs/matrix.png" alt="IDS Confusion Matrix">
   <br>
   <em>Live statistical performance tracking and detection accuracy</em>
 </div>
+
+* **Confusion Matrix Calculation**: The system compares the actual ground truth of attacked nodes against the IDS alarms to calculate True Positives (TP), False Positives (FP), True Negatives (TN), and False Negatives (FN).
+* **Derived Metrics**: Calculates Accuracy, Detection Rate (Recall), False Positive Rate (FPR), Precision, and the Matthews Correlation Coefficient (MCC).
+* **Latency Tracking**: Measures "Detection Latency"—the delta between when an attack was launched and when the IDS first cast an alarm.
+* **Survivability**: Evaluates energy depletion to calculate the final network survival rate.
 
 ---
 *Developed by Mihir Katoch as part of the Fog-Project research initiative.*
