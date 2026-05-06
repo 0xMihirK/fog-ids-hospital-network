@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Hospital Fog Network Intrusion Detection System — Real-time monitoring dashboard with ML-based IDS, honeypots, and VLAN-segmented DMZ architecture.">
+    <title>Hospital Fog IDS — Network Security Dashboard</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+
+    <!-- Socket.IO -->
+    <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
+
+    <!-- App Styles -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- ═══ Top Header Bar ═══ -->
+    <header id="header">
+        <div class="header-left">
+            <div class="logo-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                    <path d="M2 17l10 5 10-5"/>
+                    <path d="M2 12l10 5 10-5"/>
+                </svg>
+            </div>
+            <div class="header-title">
+                <h1>Hospital Fog IDS</h1>
+                <span class="header-subtitle">Network Security Dashboard</span>
+            </div>
+        </div>
+        <div class="header-center">
+            <div class="status-pill" id="connectionStatus">
+                <span class="status-dot"></span>
+                <span class="status-text">Connecting...</span>
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="header-stat">
+                <span class="stat-label">Tick</span>
+                <span class="stat-value" id="simTick">0</span>
+                <span class="stat-label">/ <span id="simMaxTick">500</span></span>
+            </div>
+            <div class="header-stat">
+                <span class="stat-label">Nodes</span>
+                <span class="stat-value" id="nodeCount">800</span>
+            </div>
+            <div class="header-stat">
+                <span class="stat-label">Alerts</span>
+                <span class="stat-value alert-value" id="alertCount">0</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- ═══ Tab Navigation ═══ -->
+    <nav id="tabNav">
+        <button class="tab-btn active" data-tab="health" id="tabHealth">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+            <span>Health Monitor</span>
+        </button>
+        <button class="tab-btn" data-tab="ids" id="tabIDS">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            <span>IDS &amp; Alerts</span>
+        </button>
+        <button class="tab-btn" data-tab="simulate" id="tabSimulate">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            <span>Attack Simulation</span>
+        </button>
+        <button class="tab-btn" data-tab="logs" id="tabLogs">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            <span>Traffic Logs</span>
+        </button>
+    </nav>
+
+    <!-- ═══ Tab Content Panels ═══ -->
+    <main id="mainContent">
+
+        <!-- ── Health Monitor Tab ── -->
+        <section class="tab-panel active" id="panelHealth">
+            <!-- Health Meter -->
+            <div class="health-meter-container" style="margin-bottom: 20px; padding: 20px; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-md); display: flex; align-items: center; gap: 20px;">
+                <div style="flex-shrink: 0; font-size: 2rem;">💖</div>
+                <div style="flex-grow: 1;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <span style="font-weight: 600; color: var(--text-primary);">Overall Network Health</span>
+                        <span id="healthMeterValue" style="font-weight: bold; color: var(--accent-green);">100%</span>
+                    </div>
+                    <div style="height: 12px; background: var(--bg-input); border-radius: 6px; overflow: hidden; position: relative;">
+                        <div id="healthMeterBar" style="position: absolute; top: 0; left: 0; height: 100%; width: 100%; background: var(--gradient-green); transition: width 0.5s ease, background 0.5s ease;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="health-grid">
+                <!-- Metric Cards -->
+                <div class="metric-card" id="cardNodeStatus">
+                    <div class="metric-icon node-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                    </div>
+                    <div class="metric-body">
+                        <span class="metric-label">Node Status</span>
+                        <span class="metric-value" id="healthActive">680</span>
+                        <span class="metric-sub">Active / <span id="healthDead">0</span> Dead / <span id="healthQuarantined">0</span> Quarantined</span>
+                    </div>
+                </div>
+
+                <div class="metric-card" id="cardLatency">
+                    <div class="metric-icon latency-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    </div>
+                    <div class="metric-body">
+                        <span class="metric-label">Avg Latency</span>
+                        <span class="metric-value" id="healthLatency">0.0</span>
+                        <span class="metric-sub">ms end-to-end</span>
+                    </div>
+                </div>
+
+                <div class="metric-card" id="cardPktLoss">
+                    <div class="metric-icon loss-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                    </div>
+                    <div class="metric-body">
+                        <span class="metric-label">Packet Loss</span>
+                        <span class="metric-value" id="healthPktLoss">1.0%</span>
+                        <span class="metric-sub">current rate</span>
+                    </div>
+                </div>
+
+                <div class="metric-card" id="cardUptime">
+                    <div class="metric-icon uptime-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
+                    </div>
+                    <div class="metric-body">
+                        <span class="metric-label">Survival Rate</span>
+                        <span class="metric-value" id="healthUptime">100%</span>
+                        <span class="metric-sub">sensor uptime</span>
+                    </div>
+                </div>
+
+                <!-- Charts Row -->
+                <div class="chart-card wide" id="chartPktRate">
+                    <h3>Packet Rate</h3>
+                    <canvas id="pktRateChart"></canvas>
+                </div>
+                <div class="chart-card wide" id="chartLatencyBreakdown">
+                    <h3>Latency Breakdown</h3>
+                    <canvas id="latencyChart"></canvas>
+                </div>
+                <div class="chart-card" id="chartFogLoad">
+                    <h3>Fog Load Monitor</h3>
+                    <canvas id="fogLoadChart"></canvas>
+                </div>
+                <div class="chart-card" id="chartEnergy">
+                    <h3>Energy &amp; Survival</h3>
+                    <canvas id="energyChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- ── IDS & Alerts Tab ── -->
+        <section class="tab-panel" id="panelIDS">
+            <div class="ids-grid">
+                <div class="chart-card" id="chartAlarmHistory">
+                    <h3>Alarm History</h3>
+                    <canvas id="alarmHistoryChart"></canvas>
+                </div>
+                <div class="chart-card" id="chartAttackDist">
+                    <h3>Attack Distribution</h3>
+                    <canvas id="attackDistChart"></canvas>
+                </div>
+                <div class="card event-feed-card" id="eventFeedCard">
+                    <h3>Real-Time Event Feed</h3>
+                    <div class="event-feed" id="eventFeed">
+                        <div class="event-placeholder">Waiting for simulation data...</div>
+                    </div>
+                </div>
+                <div class="card suspicious-card" id="suspiciousCard">
+                    <h3>Suspicious Nodes</h3>
+                    <div class="suspicious-table-wrap">
+                        <table class="suspicious-table" id="suspiciousTable">
+                            <thead>
+                                <tr>
+                                    <th>Node</th>
+                                    <th>Type</th>
+                                    <th>Ward</th>
+                                    <th>Score</th>
+                                    <th>Status</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="suspiciousBody">
+                                <tr><td colspan="6" class="empty-row">No suspicious nodes detected</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card stats-card" id="liveStatsCard">
+                    <h3>Live Performance</h3>
+                    <div class="stats-grid" id="liveStats">
+                        <div class="stat-row"><span>Accuracy</span><span id="statAccuracy">—</span></div>
+                        <div class="stat-row"><span>Detection Rate</span><span id="statDetRate">—</span></div>
+                        <div class="stat-row"><span>Precision</span><span id="statPrecision">—</span></div>
+                        <div class="stat-row"><span>F1-Score</span><span id="statF1">—</span></div>
+                        <div class="stat-row"><span>FPR</span><span id="statFPR">—</span></div>
+                        <div class="stat-row separator"></div>
+                        <div class="stat-row"><span>TP</span><span id="statTP">0</span></div>
+                        <div class="stat-row"><span>FP</span><span id="statFP">0</span></div>
+                        <div class="stat-row"><span>FN</span><span id="statFN">0</span></div>
+                        <div class="stat-row"><span>TN</span><span id="statTN">0</span></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ── Attack Simulation Tab ── -->
+        <section class="tab-panel" id="panelSimulate">
+            <div class="simulate-grid">
+                <div class="card attack-triggers-card">
+                    <h3>Manual Attack Triggers</h3>
+                    <div class="attack-buttons">
+                        <button class="attack-btn ddos" data-attack="DDoS" id="btnDDoS">
+                            <span class="attack-icon">⚡</span>
+                            <span class="attack-name">DDoS</span>
+                            <span class="attack-desc">Volumetric flood</span>
+                        </button>
+                        <button class="attack-btn mitm" data-attack="MITM" id="btnMITM">
+                            <span class="attack-icon">🕵️</span>
+                            <span class="attack-name">MITM</span>
+                            <span class="attack-desc">ARP spoofing</span>
+                        </button>
+                        <button class="attack-btn replay" data-attack="Replay" id="btnReplay">
+                            <span class="attack-icon">🔄</span>
+                            <span class="attack-name">Replay</span>
+                            <span class="attack-desc">Duplicate packets</span>
+                        </button>
+                        <button class="attack-btn nmap" data-attack="Nmap" id="btnNmap">
+                            <span class="attack-icon">🔍</span>
+                            <span class="attack-name">Nmap</span>
+                            <span class="attack-desc">Port scanning</span>
+                        </button>
+                        <button class="attack-btn apt" data-attack="APT" id="btnAPT">
+                            <span class="attack-icon">🐍</span>
+                            <span class="attack-name">APT</span>
+                            <span class="attack-desc">DNS tunneling</span>
+                        </button>
+                        <button class="attack-btn injection" data-attack="Injection" id="btnInjection">
+                            <span class="attack-icon">💉</span>
+                            <span class="attack-name">Injection</span>
+                            <span class="attack-desc">Data fabrication</span>
+                        </button>
+                        <button class="attack-btn honeypot" data-attack="Honeypot" id="btnHoneypot">
+                            <span class="attack-icon">🍯</span>
+                            <span class="attack-name">Honeypot</span>
+                            <span class="attack-desc">Target Decoys</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="card pipeline-card wide">
+                    <h3>IDS Detection Pipeline</h3>
+                    <div class="pipeline" id="idsPipeline">
+                        <div class="pipeline-stage">
+                            <div class="stage-icon">📡</div>
+                            <div class="stage-label">Traffic<br>Ingestion</div>
+                        </div>
+                        <div class="pipeline-arrow">→</div>
+                        <div class="pipeline-stage">
+                            <div class="stage-icon">⚙️</div>
+                            <div class="stage-label">Hybrid<br>Engine</div>
+                        </div>
+                        <div class="pipeline-arrow">→</div>
+                        <div style="display:flex; flex-direction:column; gap:10px;">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <div class="pipeline-stage" style="border-color: var(--accent-purple); box-shadow: 0 0 10px rgba(139,92,246,0.2);">
+                                    <div class="stage-icon">🧠</div>
+                                    <div class="stage-label">ML<br>Scoring</div>
+                                </div>
+                                <div class="pipeline-arrow">→</div>
+                                <div class="pipeline-stage">
+                                    <div class="stage-icon">🚨</div>
+                                    <div class="stage-label">Alert Feed</div>
+                                </div>
+                            </div>
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <div class="pipeline-stage" style="border-color: var(--accent-red); box-shadow: 0 0 10px rgba(239,68,68,0.2);">
+                                    <div class="stage-icon">🎯</div>
+                                    <div class="stage-label">Signature<br>Match</div>
+                                </div>
+                                <div class="pipeline-arrow">→</div>
+                                <div class="pipeline-stage" style="border-color: var(--accent-red); background: rgba(239,68,68,0.1);">
+                                    <div class="stage-icon">🔒</div>
+                                    <div class="stage-label">Instant<br>Quarantine</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ── Traffic Logs Tab ── -->
+        <section class="tab-panel" id="panelLogs">
+            <div class="logs-container">
+                <div class="logs-toolbar">
+                    <input type="text" class="log-search" id="logSearch" placeholder="Filter logs...">
+                    <select class="log-filter" id="logFilterType">
+                        <option value="all">All Events</option>
+                        <option value="alarm">Alarms</option>
+                        <option value="honeypot">Honeypot</option>
+                        <option value="acl">ACL Violations</option>
+                        <option value="quarantine">Quarantine</option>
+                        <option value="egress">Egress Blocks</option>
+                    </select>
+                    <button class="ctrl-btn" id="btnClearLogs">Clear</button>
+                    <button class="ctrl-btn" id="btnExportLogs">Export</button>
+                </div>
+                <div class="logs-table-wrap">
+                    <table class="logs-table" id="logsTable">
+                        <thead>
+                            <tr>
+                                <th>Tick</th>
+                                <th>Source IP</th>
+                                <th>Source ID</th>
+                                <th>Dest</th>
+                                <th>VLAN</th>
+                                <th>Type</th>
+                                <th>Result</th>
+                                <th>Details</th>
+                            </tr>
+                        </thead>
+                        <tbody id="logsBody">
+                            <tr><td colspan="8" class="empty-row">No traffic logs yet — start simulation to begin logging</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- ═══ App Scripts ═══ -->
+    <script src="topology.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
