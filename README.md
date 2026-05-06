@@ -83,8 +83,42 @@ The system evaluates network metrics against deterministic fingerprints and stat
 
 Beyond detection, the system implements active defense mechanisms to neutralize threats without disrupting hospital operations.
 
+> [!TIP]
+> **Zero-Downtime Security:** In a clinical setting, physically powering down a compromised ventilator could be lethal. The IDS is designed to logically isolate devices while keeping their core functions powered on.
+
+### Detection to Isolation Pipeline
+
+```mermaid
+graph TD
+    classDef anomaly fill:#900,stroke:#fff,stroke-width:2px,color:#fff;
+    classDef process fill:#036,stroke:#fff,stroke-width:2px,color:#fff;
+    classDef decision fill:#a60,stroke:#fff,stroke-width:2px,color:#fff;
+    classDef quarantine fill:#222,stroke:#f00,stroke-width:2px,color:#f88,stroke-dasharray: 5 5;
+    classDef clean fill:#060,stroke:#fff,stroke-width:2px,color:#fff;
+
+    A["IoMT Sensor Traffic"] -->|"Metrics: Rate, Latency, Payload"| B("Fog Node Feature Extraction"):::process
+    
+    B --> C{"7-Module IDS Voting"}:::decision
+    C -->|"Normal Traffic"| D["Standard Forwarding to Gateway"]:::clean
+    
+    C -->|"Anomaly Detected"| E{"Fingerprint Match?"}:::decision
+    
+    E -->|"Yes (DDoS, Lethal Injection)"| F["Instant Override Alarm"]:::anomaly
+    E -->|"No (Subtle Attack)"| G{"Sustained Alarm Streak >= 5"}:::decision
+    
+    G -->|"Yes (APT, Replay)"| H["Streak Alarm Triggered"]:::anomaly
+    G -->|"No"| I["Monitor & Increment Streak"]:::process
+    
+    F --> J("Quarantine Protocol Initiated"):::process
+    H --> J
+    
+    J --> K["Reassign to VLAN 999"]:::quarantine
+    K --> L["Egress Traffic Blocked"]:::quarantine
+    K --> M["Device Logically Isolated (Powered On)"]:::quarantine
+```
+
 ### Dynamic Node Quarantine (VLAN 999)
-When the IDS confirms a compromised node, it employs a quarantine protocol to instantly isolate the threat. The node is not powered down; instead, its network traffic is dynamically reassigned to an isolated Access Control List mapped to **VLAN 999**. This completely blocks its egress traffic, neutralizing its ability to harm the broader hospital network. 
+When the IDS confirms a compromised node, it employs the quarantine protocol outlined above to instantly isolate the threat. The node's network traffic is dynamically reassigned to an isolated Access Control List mapped to **VLAN 999**. This completely blocks its egress traffic, neutralizing its ability to harm the broader hospital network.
 * **Instant Quarantine**: For severe fingerprint matches (DDoS, lethal Data Injection).
 * **Streak-Based Quarantine**: For sustained, persistent alarms over multiple simulation ticks.
 
